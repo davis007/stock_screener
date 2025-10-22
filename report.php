@@ -48,6 +48,17 @@ $stmt = $pdo->prepare('
 $stmt->execute([$analysis_date]);
 $bandwalk_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// エクスパンション検出結果を取得
+$stmt = $pdo->prepare('
+	SELECT er.*, c.name as company_name
+	FROM expansion_results er
+	LEFT JOIN companies c ON er.code = c.code
+	WHERE er.analysis_date = ?
+	ORDER BY er.code
+');
+$stmt->execute([$analysis_date]);
+$expansion_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // 日付をフォーマット
 $date_obj = DateTime::createFromFormat('Y-m-d', $analysis_date);
 $today = $date_obj->format('Y年m月d日');
@@ -208,6 +219,9 @@ function get_score_class($score) {
 		.bandwalk-row.hidden {
 			display: none;
 		}
+		.expansion-row.hidden {
+			display: none;
+		}
 		.tooltip-container {
 			position: relative;
 			display: inline-flex;
@@ -285,6 +299,88 @@ function get_score_class($score) {
 
 	<div class="content">
 		<div class="container">
+			<?php if (count($bandwalk_results) > 0): ?>
+				<div class="section">
+					<h2>🚀 バンドウォーク検出銘柄</h2>
+
+					<!-- フィルターボタン -->
+					<div style="margin-bottom: 15px; display: flex; gap: 10px;">
+						<button class="filter-btn" onclick="filterBandwalk('all', this)">全部表示</button>
+						<button class="filter-btn active" onclick="filterBandwalk('active', this)">発生中のみ</button>
+					</div>
+
+					<table id="bandwalk-table">
+						<thead>
+							<tr>
+								<th>企業名</th>
+								<th>銘柄コード</th>
+								<th>価格</th>
+								<th>バンドウォーク</th>
+								<th>BBバンド幅</th>
+								<th>利食い目標</th>
+								<th>損切りライン</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ($bandwalk_results as $row): ?>
+								<?php $is_bandwalk = $row['is_bandwalk'] ? true : false; ?>
+								<tr class="bandwalk-row" data-bandwalk="<?php echo $is_bandwalk ? 'active' : 'inactive'; ?>">
+									<td><a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank"><?php echo htmlspecialchars($row['company_name']); ?></a></td>
+									<td><?php echo htmlspecialchars($row['code']); ?></td>
+									<td><?php echo format_price($row['price']); ?></td>
+									<td><span class="badge <?php echo $is_bandwalk ? 'badge-yes' : 'badge-no'; ?>"><?php echo $is_bandwalk ? '⭕ 発生中' : '❌ なし'; ?></span></td>
+									<td><?php echo (int)$row['bb_width']; ?></td>
+									<td style="color: #27ae60; font-weight: bold;"><?php echo format_percentage($row['price'], $row['profit_target']); ?></td>
+									<td style="color: #e74c3c; font-weight: bold;"><?php echo format_percentage($row['price'], $row['stop_loss']); ?></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
+
+			<?php if (count($expansion_results) > 0): ?>
+				<div class="section">
+					<h2>📈 エクスパンション検出銘柄</h2>
+
+					<!-- フィルターボタン -->
+					<div style="margin-bottom: 15px; display: flex; gap: 10px;">
+						<button class="filter-btn" onclick="filterExpansion('all', this)">全部表示</button>
+						<button class="filter-btn active" onclick="filterExpansion('active', this)">発生中のみ</button>
+					</div>
+
+					<table id="expansion-table">
+						<thead>
+							<tr>
+								<th>企業名</th>
+								<th>銘柄コード</th>
+								<th>価格</th>
+								<th>エクスパンション</th>
+								<th>BBバンド幅</th>
+								<th>拡大率</th>
+								<th>利食い目標</th>
+								<th>損切りライン</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ($expansion_results as $row): ?>
+								<?php $is_expansion = $row['is_expansion'] ? true : false; ?>
+								<tr class="expansion-row" data-expansion="<?php echo $is_expansion ? 'active' : 'inactive'; ?>">
+									<td><a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank"><?php echo htmlspecialchars($row['company_name']); ?></a></td>
+									<td><?php echo htmlspecialchars($row['code']); ?></td>
+									<td><?php echo format_price($row['price']); ?></td>
+									<td><span class="badge <?php echo $is_expansion ? 'badge-yes' : 'badge-no'; ?>"><?php echo $is_expansion ? '⭕ 発生中' : '❌ なし'; ?></span></td>
+									<td><?php echo (int)$row['bb_width']; ?></td>
+									<td style="color: #3498db; font-weight: bold;"><?php echo (int)$row['expansion_rate']; ?>%</td>
+									<td style="color: #27ae60; font-weight: bold;"><?php echo format_percentage($row['price'], $row['profit_target']); ?></td>
+									<td style="color: #e74c3c; font-weight: bold;"><?php echo format_percentage($row['price'], $row['stop_loss']); ?></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
+
 			<?php if (count($trinity_results) > 0): ?>
 				<div class="section">
 					<h2>📊 三位一体モデル評価（スコア順）</h2>
@@ -355,45 +451,7 @@ function get_score_class($score) {
 				</div>
 			<?php endif; ?>
 
-			<?php if (count($bandwalk_results) > 0): ?>
-				<div class="section">
-					<h2>🚀 バンドウォーク検出銘柄</h2>
 
-					<!-- フィルターボタン -->
-					<div style="margin-bottom: 15px; display: flex; gap: 10px;">
-						<button class="filter-btn active" onclick="filterBandwalk('all')">全部表示</button>
-						<button class="filter-btn" onclick="filterBandwalk('active')">発生中のみ</button>
-					</div>
-
-					<table id="bandwalk-table">
-						<thead>
-							<tr>
-								<th>企業名</th>
-								<th>銘柄コード</th>
-								<th>価格</th>
-								<th>バンドウォーク</th>
-								<th>BBバンド幅</th>
-								<th>利食い目標</th>
-								<th>損切りライン</th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php foreach ($bandwalk_results as $row): ?>
-								<?php $is_bandwalk = $row['is_bandwalk'] ? true : false; ?>
-								<tr class="bandwalk-row" data-bandwalk="<?php echo $is_bandwalk ? 'active' : 'inactive'; ?>">
-									<td><a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank"><?php echo htmlspecialchars($row['company_name']); ?></a></td>
-									<td><?php echo htmlspecialchars($row['code']); ?></td>
-									<td><?php echo format_price($row['price']); ?></td>
-									<td><span class="badge <?php echo $is_bandwalk ? 'badge-yes' : 'badge-no'; ?>"><?php echo $is_bandwalk ? '⭕ 発生中' : '❌ なし'; ?></span></td>
-									<td><?php echo (int)$row['bb_width']; ?></td>
-									<td style="color: #27ae60; font-weight: bold;"><?php echo format_percentage($row['price'], $row['profit_target']); ?></td>
-									<td style="color: #e74c3c; font-weight: bold;"><?php echo format_percentage($row['price'], $row['stop_loss']); ?></td>
-								</tr>
-							<?php endforeach; ?>
-						</tbody>
-					</table>
-				</div>
-			<?php endif; ?>
 		</div>
 	</div>
 
@@ -402,11 +460,17 @@ function get_score_class($score) {
 	</div>
 
 	<script>
-		function filterBandwalk(filter) {
+		function filterBandwalk(filter, buttonElement) {
 			// ボタンのアクティブ状態を更新
-			const buttons = document.querySelectorAll('.filter-btn');
-			buttons.forEach(btn => btn.classList.remove('active'));
-			event.target.classList.add('active');
+			// バンドウォークテーブルの親要素から最も近いボタンを取得
+			const bandwalkSection = buttonElement.closest('.section');
+			if (bandwalkSection) {
+				const buttons = bandwalkSection.querySelectorAll('.filter-btn');
+				buttons.forEach(btn => btn.classList.remove('active'));
+				if (buttonElement) {
+					buttonElement.classList.add('active');
+				}
+			}
 
 			// テーブルの行をフィルタリング
 			const rows = document.querySelectorAll('.bandwalk-row');
@@ -422,6 +486,52 @@ function get_score_class($score) {
 				}
 			});
 		}
+
+		function filterExpansion(filter, buttonElement) {
+			// ボタンのアクティブ状態を更新
+			// エクスパンションテーブルの親要素から最も近いボタンを取得
+			const expansionSection = buttonElement.closest('.section');
+			if (expansionSection) {
+				const buttons = expansionSection.querySelectorAll('.filter-btn');
+				buttons.forEach(btn => btn.classList.remove('active'));
+				if (buttonElement) {
+					buttonElement.classList.add('active');
+				}
+			}
+
+			// テーブルの行をフィルタリング
+			const rows = document.querySelectorAll('.expansion-row');
+			rows.forEach(row => {
+				if (filter === 'all') {
+					row.classList.remove('hidden');
+				} else if (filter === 'active') {
+					if (row.dataset.expansion === 'active') {
+						row.classList.remove('hidden');
+					} else {
+						row.classList.add('hidden');
+					}
+				}
+			});
+		}
+
+		// ページ読み込み時に「発生中のみ」でフィルタリング
+		document.addEventListener('DOMContentLoaded', function() {
+			// バンドウォークのフィルタリング
+			const bandwalkRows = document.querySelectorAll('.bandwalk-row');
+			bandwalkRows.forEach(row => {
+				if (row.dataset.bandwalk !== 'active') {
+					row.classList.add('hidden');
+				}
+			});
+
+			// エクスパンションのフィルタリング
+			const expansionRows = document.querySelectorAll('.expansion-row');
+			expansionRows.forEach(row => {
+				if (row.dataset.expansion !== 'active') {
+					row.classList.add('hidden');
+				}
+			});
+		});
 	</script>
 </body>
 </html>

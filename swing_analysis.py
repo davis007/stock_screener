@@ -335,6 +335,76 @@ def check_bandwalk(ticker_code: str) -> Optional[dict]:
 		print(f"Error checking bandwalk for {ticker_code}: {str(e)}")
 		return None
 
+def check_expansion(ticker_code: str) -> Optional[dict]:
+	"""
+	ボリンジャーバンドのエクスパンション検出
+	バンド幅が急速に拡大している状態を検知
+
+	Args:
+		ticker_code: 銘柄コード（例: '6920'）
+
+	Returns:
+		判定結果の辞書、またはエラー時はNone
+	"""
+	try:
+		# .Tを付加してyfinanceで取得
+		ticker = f"{ticker_code}.T"
+		df = yf.download(ticker, period="60d", progress=False, auto_adjust=True)
+
+		# DataFrameのインデックスをリセット
+		if isinstance(df.columns, pd.MultiIndex):
+			df.columns = df.columns.get_level_values(0)
+
+		# データ不足チェック
+		if len(df) < 25:
+			return None
+
+		# ボリンジャーバンドの計算
+		df.ta.bbands(length=20, std=2, append=True)
+
+		# 最新データの取得
+		latest = df.iloc[-1]
+		prev_1 = df.iloc[-2]
+		prev_2 = df.iloc[-3]
+		prev_3 = df.iloc[-4]
+		prev_4 = df.iloc[-5]
+
+		# バンド幅の取得
+		bb_width_latest = latest['BBB_20_2.0']
+		bb_width_1d = prev_1['BBB_20_2.0']
+		bb_width_2d = prev_2['BBB_20_2.0']
+		bb_width_3d = prev_3['BBB_20_2.0']
+		bb_width_4d = prev_4['BBB_20_2.0']
+
+		# エクスパンション判定
+		# 条件: バンド幅が過去4日間で継続的に拡大している
+		is_expanding = (
+			bb_width_latest > bb_width_1d and
+			bb_width_1d > bb_width_2d and
+			bb_width_2d > bb_width_3d and
+			bb_width_3d > bb_width_4d
+		)
+
+		# 拡大率の計算
+		expansion_rate = ((bb_width_latest - bb_width_4d) / bb_width_4d * 100) if bb_width_4d > 0 else 0
+
+		# 期待値の計算
+		expected = calculate_expected_values(ticker_code)
+
+		return {
+			'code': ticker_code,
+			'is_expansion': is_expanding,
+			'price': round(latest['Close'], 2),
+			'bb_width': round(bb_width_latest, 2),
+			'expansion_rate': round(expansion_rate, 2),
+			'profit_target': expected['profit_target'] if expected else None,
+			'stop_loss': expected['stop_loss'] if expected else None
+		}
+
+	except Exception as e:
+		print(f"Error checking expansion for {ticker_code}: {str(e)}")
+		return None
+
 def format_price(price: float) -> str:
 	"""
 	価格をフォーマット（小数点以下は省略、円記号付き）
@@ -383,6 +453,7 @@ def main():
 
 		trinity_results = []
 		bandwalk_results = []
+		expansion_results = []
 
 		# 各銘柄を分析
 		for stock in stocks:
@@ -409,11 +480,20 @@ def main():
 				# DB保存
 				db.save_bandwalk_result(analysis_date, bandwalk)
 
+			# エクスパンション検出
+			expansion = check_expansion(code)
+			if expansion:
+				expansion['company_name'] = company_name
+				expansion_results.append(expansion)
+				# DB保存
+				db.save_expansion_result(analysis_date, expansion)
+
 		print("-" * 50)
 
 		# DataFrameに変換
 		trinity_df = pd.DataFrame(trinity_results)
 		bandwalk_df = pd.DataFrame(bandwalk_results)
+		expansion_df = pd.DataFrame(expansion_results)
 
 		# 三位一体モデルをスコアの降順でソート
 		if len(trinity_df) > 0:
@@ -429,6 +509,15 @@ def main():
 				print(bandwalk_true[['company_name', 'code', 'price', 'is_bandwalk', 'bb_width']])
 			else:
 				print("バンドウォーク検出銘柄なし")
+
+		# エクスパンション検出結果をフィルタリング
+		if len(expansion_df) > 0:
+			expansion_true = expansion_df[expansion_df['is_expansion'] == True]
+			print("\n【エクスパンション検出銘柄】")
+			if len(expansion_true) > 0:
+				print(expansion_true[['company_name', 'code', 'price', 'is_expansion', 'bb_width', 'expansion_rate']])
+			else:
+				print("エクスパンション検出銘柄なし")
 
 		print(f"✓ 分析データをデータベースに保存しました")
 		print(f"✓ 分析日時: {analysis_date}")
