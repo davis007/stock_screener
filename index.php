@@ -28,14 +28,14 @@ foreach ($dates as $date_str) {
 	list($year, $month, $day) = explode('-', $date_str);
 	$year_key = $year;
 	$month_key = $year . '年' . (int)$month . '月';
-	
+
 	if (!isset($date_groups[$year_key])) {
 		$date_groups[$year_key] = [];
 	}
 	if (!isset($date_groups[$year_key][$month_key])) {
 		$date_groups[$year_key][$month_key] = [];
 	}
-	
+
 	$date_groups[$year_key][$month_key][] = [
 		'day' => (int)$day . '日',
 		'date_str' => $date_str
@@ -148,6 +148,10 @@ foreach ($date_groups as &$year_data) {
 		<div class="header">
 			<h1>📅 スイングトレード銘柄分析 - 分析履歴</h1>
 			<p>過去の分析結果を年月日ごとに表示しています</p>
+			<p style="margin-top: 10px;">
+				<a href="Individual.php">🔍 個別銘柄分析</a> |
+				<a href="report.php">📊 最新分析結果</a>
+			</p>
 		</div>
 
 		<?php foreach (array_keys($date_groups) as $year): ?>
@@ -175,4 +179,3 @@ foreach ($date_groups as &$year_data) {
 	</div>
 </body>
 </html>
-

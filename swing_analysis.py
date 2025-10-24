@@ -4,6 +4,8 @@ import pandas_ta as ta
 from datetime import date, datetime
 import os
 import traceback
+import sys
+import argparse
 from typing import Optional, List, Dict
 from bs4 import BeautifulSoup
 import urllib.request
@@ -422,8 +424,108 @@ def format_percentage(current_price: float, target_price: float) -> str:
 
 
 
+def analyze_individual_stock(stock_code: str):
+	"""
+	個別銘柄の分析を実行
+	"""
+	print(f"個別銘柄分析開始: {stock_code}")
+	print("-" * 50)
+
+	# 企業名を取得（可能であれば）
+	company_name = get_company_name(stock_code)
+
+	# 三位一体モデルの分析
+	trinity = analyze_swing_trinity(stock_code)
+	if trinity:
+		print(f"\n【三位一体モデル評価結果】")
+		print(f"銘柄コード: {stock_code}")
+		if company_name:
+			print(f"企業名: {company_name}")
+		print(f"現在価格: {format_price(trinity['price'])}")
+		print(f"スコア: {trinity['score']}点")
+		print(f"RSI_9: {trinity['RSI_9']}")
+		print(f"VWAP: {format_price(trinity['VWAP'])}")
+		print(f"BBバンド幅: {trinity['BB_Width']}")
+		if trinity['profit_target']:
+			print(f"利食い目標: {format_percentage(trinity['price'], trinity['profit_target'])}")
+		if trinity['stop_loss']:
+			print(f"損切りライン: {format_percentage(trinity['price'], trinity['stop_loss'])}")
+	else:
+		print("三位一体分析: データ取得に失敗しました")
+
+	# バンドウォーク検出
+	bandwalk = check_bandwalk(stock_code)
+	if bandwalk:
+		print(f"\n【バンドウォーク検出銘柄】")
+		print(f"銘柄コード: {stock_code}")
+		if company_name:
+			print(f"企業名: {company_name}")
+		print(f"現在価格: {format_price(bandwalk['price'])}")
+		status = "⭕ 発生中" if bandwalk['is_bandwalk'] else "❌ なし"
+		print(f"バンドウォーク: {status}")
+		print(f"BBバンド幅: {bandwalk['bb_width']}")
+		if bandwalk['profit_target']:
+			print(f"利食い目標: {format_percentage(bandwalk['price'], bandwalk['profit_target'])}")
+		if bandwalk['stop_loss']:
+			print(f"損切りライン: {format_percentage(bandwalk['price'], bandwalk['stop_loss'])}")
+	else:
+		print("バンドウォーク分析: データ取得に失敗しました")
+
+	# エクスパンション検出
+	expansion = check_expansion(stock_code)
+	if expansion:
+		print(f"\n【エクスパンション検出銘柄】")
+		print(f"銘柄コード: {stock_code}")
+		if company_name:
+			print(f"企業名: {company_name}")
+		print(f"現在価格: {format_price(expansion['price'])}")
+		status = "⭕ 発生中" if expansion['is_expansion'] else "❌ なし"
+		print(f"エクスパンション: {status}")
+		print(f"BBバンド幅: {expansion['bb_width']}")
+		print(f"拡大率: {expansion['expansion_rate']}%")
+		if expansion['profit_target']:
+			print(f"利食い目標: {format_percentage(expansion['price'], expansion['profit_target'])}")
+		if expansion['stop_loss']:
+			print(f"損切りライン: {format_percentage(expansion['price'], expansion['stop_loss'])}")
+	else:
+		print("エクスパンション分析: データ取得に失敗しました")
+
+def get_company_name(stock_code: str) -> str:
+	"""
+	銘柄コードから企業名を取得（簡易版）
+	"""
+	try:
+		# kabutan.jpから企業名を取得
+		url = f"https://kabutan.jp/stock/?code={stock_code}"
+		headers = {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+		}
+		req = urllib.request.Request(url, headers=headers)
+		with urllib.request.urlopen(req, timeout=10) as response:
+			html = response.read().decode('utf-8')
+
+		soup = BeautifulSoup(html, "html.parser")
+		# 企業名を取得
+		company_name_element = soup.find('span', class_='company_name')
+		if company_name_element:
+			return company_name_element.get_text(strip=True)
+	except Exception:
+		pass
+	return ""
+
 def main():
 	"""メイン処理"""
+	# 引数の解析
+	parser = argparse.ArgumentParser(description='スイングトレード銘柄分析')
+	parser.add_argument('--individual', type=str, help='個別銘柄分析（銘柄コードを指定）')
+	args = parser.parse_args()
+
+	# 個別分析モード
+	if args.individual:
+		analyze_individual_stock(args.individual)
+		return
+
+	# 通常のバッチ分析モード
 	try:
 		from db_manager import DatabaseManager
 
@@ -528,4 +630,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
