@@ -87,6 +87,7 @@ function get_score_class($score) {
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>スイングトレード銘柄分析 - <?php echo htmlspecialchars($today); ?></title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 	<style>
 		* {
 			margin: 0;
@@ -289,6 +290,15 @@ function get_score_class($score) {
 			flex-shrink: 0;
 			border-top: 1px solid #eee;
 		}
+		.detail-icon {
+			color: #667eea;
+			margin-left: 6px;
+			cursor: pointer;
+			transition: color 0.3s ease;
+		}
+		.detail-icon:hover {
+			color: #764ba2;
+		}
 	</style>
 </head>
 <body>
@@ -325,7 +335,14 @@ function get_score_class($score) {
 							<?php foreach ($bandwalk_results as $row): ?>
 								<?php $is_bandwalk = $row['is_bandwalk'] ? true : false; ?>
 								<tr class="bandwalk-row" data-bandwalk="<?php echo $is_bandwalk ? 'active' : 'inactive'; ?>">
-									<td><a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank"><?php echo htmlspecialchars($row['company_name']); ?></a></td>
+									<td>
+										<a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank">
+											<?php echo htmlspecialchars($row['company_name']); ?>
+										</a>
+										<a href="comp.php?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank" title="詳細を見る">
+											<i class="fa-solid fa-circle-info detail-icon"></i>
+										</a>
+									</td>
 									<td><?php echo htmlspecialchars($row['code']); ?></td>
 									<td><?php echo format_price($row['price']); ?></td>
 									<td><span class="badge <?php echo $is_bandwalk ? 'badge-yes' : 'badge-no'; ?>"><?php echo $is_bandwalk ? '⭕ 発生中' : '❌ なし'; ?></span></td>
@@ -366,7 +383,14 @@ function get_score_class($score) {
 							<?php foreach ($expansion_results as $row): ?>
 								<?php $is_expansion = $row['is_expansion'] ? true : false; ?>
 								<tr class="expansion-row" data-expansion="<?php echo $is_expansion ? 'active' : 'inactive'; ?>">
-									<td><a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank"><?php echo htmlspecialchars($row['company_name']); ?></a></td>
+									<td>
+										<a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank">
+											<?php echo htmlspecialchars($row['company_name']); ?>
+										</a>
+										<a href="comp.php?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank" title="詳細を見る">
+											<i class="fa-solid fa-circle-info detail-icon"></i>
+										</a>
+									</td>
 									<td><?php echo htmlspecialchars($row['code']); ?></td>
 									<td><?php echo format_price($row['price']); ?></td>
 									<td><span class="badge <?php echo $is_expansion ? 'badge-yes' : 'badge-no'; ?>"><?php echo $is_expansion ? '⭕ 発生中' : '❌ なし'; ?></span></td>
@@ -431,7 +455,14 @@ function get_score_class($score) {
 						<tbody>
 							<?php foreach ($trinity_results as $row): ?>
 								<tr>
-									<td><a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank"><?php echo htmlspecialchars($row['company_name']); ?></a></td>
+									<td>
+										<a href="https://kabutan.jp/stock/chart?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank">
+											<?php echo htmlspecialchars($row['company_name']); ?>
+										</a>
+										<a href="comp.php?code=<?php echo htmlspecialchars($row['code']); ?>" target="_blank" title="詳細を見る">
+											<i class="fa-solid fa-circle-info detail-icon"></i>
+										</a>
+									</td>
 									<td><?php echo htmlspecialchars($row['code']); ?></td>
 									<td><?php echo format_price($row['price']); ?></td>
 									<td class="<?php echo get_score_class($row['score']); ?>"><?php echo (int)$row['score']; ?></td>
@@ -535,4 +566,3 @@ function get_score_class($score) {
 	</script>
 </body>
 </html>
-
