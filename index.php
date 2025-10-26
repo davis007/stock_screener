@@ -150,7 +150,10 @@ foreach ($date_groups as &$year_data) {
 			<p>過去の分析結果を年月日ごとに表示しています</p>
 			<p style="margin-top: 10px;">
 				<a href="Individual.php">🔍 個別銘柄分析</a> |
+				<a href="comp.php">📊 個別分析2</a> |
 				<a href="report.php">📊 最新分析結果</a>
+
+
 			</p>
 		</div>
 
